@@ -1,0 +1,654 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Skill Gap Analysis Framework</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout concept: an app shell. A persistent control bar (role, study time) sits above four tabs that all read from one analysis. */
+:root {
+  --bg: #f2f4f1; --surface: #ffffff; --band: #e8ece7; --ink: #101b2d; --muted: #55627a; --line: #cfd6d0;
+  --accent: #1d3a8a; --accent-ink: #ffffff; --have: #0e7c74; --part: #a8680f; --gap: #c8400e; --track: #dde3dd;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1420; --surface: #152033; --band: #111b2b; --ink: #e8edf5; --muted: #9aa8bf; --line: #26354e;
+    --accent: #8fa8ff; --accent-ink: #0d1420; --have: #3cc9b8; --part: #e8b04a; --gap: #ff7a45; --track: #22304a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1420; --surface: #152033; --band: #111b2b; --ink: #e8edf5; --muted: #9aa8bf; --line: #26354e;
+  --accent: #8fa8ff; --accent-ink: #0d1420; --have: #3cc9b8; --part: #e8b04a; --gap: #ff7a45; --track: #22304a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; letter-spacing: -0.015em; text-wrap: balance; margin: 0; }
+h2 { font-size: clamp(1.4rem, 2.8vw, 1.9rem); font-weight: 700; }
+h3 { font-size: 1.1rem; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.label, .eyebrow { font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+
+/* shell */
+.appbar { border-bottom: 1px solid var(--line); background: var(--surface); }
+.appbar .wrap { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; justify-content: space-between; padding-block: 12px; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; letter-spacing: -0.01em; }
+.brand small { display: block; font: 400 0.74rem var(--font-mono); color: var(--muted); letter-spacing: 0.04em; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs a { color: var(--ink); text-decoration: none; font-weight: 500; font-size: 0.93rem; padding: 8px 14px; border-radius: 6px; border: 1.5px solid transparent; }
+.tabs a:hover { background: var(--band); }
+.tabs a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+.controls { background: var(--band); border-bottom: 1px solid var(--line); }
+.controls .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; padding-block: 14px; }
+.controls .field { min-width: 0; flex: 1 1 200px; max-width: 320px; }
+.controls .sync { margin-left: auto; font-size: 0.82rem; color: var(--muted); align-self: center; }
+main .wrap { padding-block: 28px 64px; display: grid; gap: 22px; }
+.view[hidden] { display: none !important; }
+.view { display: grid; gap: 22px; }
+.banner { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; border: 1.5px dashed var(--accent); border-radius: 10px; padding: 12px 16px; font-size: 0.92rem; background: var(--surface); }
+
+/* controls */
+.field { display: grid; gap: 6px; }
+.field > label { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+select, input[type="text"], textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 12px; width: 100%; min-width: 0; }
+.controls select { background: var(--surface); }
+select:focus, input:focus, textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+textarea { min-height: 130px; resize: vertical; }
+.btn { font: inherit; font-weight: 600; font-size: 0.92rem; border-radius: 6px; padding: 10px 18px; border: 1.5px solid var(--accent); cursor: pointer; white-space: nowrap; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:hover { filter: brightness(1.08); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.addrow { display: flex; gap: 8px; }
+.status { font-size: 0.86rem; color: var(--muted); min-height: 1.4em; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: grid; gap: 16px; min-width: 0; align-content: start; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 22px; align-items: start; }
+.grid2.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+/* overview */
+.score { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; }
+.ring { width: 124px; height: 124px; position: relative; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .num { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 2.1rem; font-variant-numeric: tabular-nums; }
+.ring .num small { font-size: 1rem; font-weight: 500; color: var(--muted); }
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.stat { display: grid; gap: 2px; border-left: 3px solid var(--line); padding-left: 12px; }
+.stat b { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.8rem; color: var(--muted); }
+.stat.have { border-color: var(--have); } .stat.part { border-color: var(--part); } .stat.gap { border-color: var(--gap); }
+.nextlist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; font-size: 0.93rem; }
+.nextlist li { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding-block: 9px; }
+.nextlist span:last-child { font: 400 0.8rem var(--font-mono); color: var(--muted); white-space: nowrap; }
+.ladder { display: grid; gap: 14px; }
+.lrow { display: grid; grid-template-columns: minmax(0, 11rem) minmax(0, 1fr) 6.5rem; gap: 14px; align-items: center; }
+.lrow .nm { font-size: 0.92rem; line-height: 1.3; }
+.lrow .nm small { display: block; color: var(--muted); font-size: 0.74rem; }
+.track { position: relative; height: 14px; border-radius: 3px; background:
+  linear-gradient(90deg, transparent calc(33.333% - 1px), var(--surface) calc(33.333% - 1px) 33.333%, transparent 33.333% calc(66.666% - 1px), var(--surface) calc(66.666% - 1px) 66.666%, transparent 66.666%), var(--track); }
+.fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--gap); }
+.fill.met { background: var(--have); } .fill.partial { background: var(--part); }
+.req { position: absolute; top: -5px; bottom: -5px; width: 3px; margin-left: -2px; background: var(--ink); border-radius: 1px; }
+.pill { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; padding: 3px 8px; border-radius: 4px; border: 1.5px solid; }
+.pill.met { color: var(--have); border-color: var(--have); } .pill.partial { color: var(--part); border-color: var(--part); } .pill.missing { color: var(--gap); border-color: var(--gap); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.legend .bar { width: 3px; height: 14px; background: var(--ink); vertical-align: -3px; }
+.hist svg { width: 100%; height: auto; display: block; }
+.hist text { fill: var(--muted); font: 400 11px var(--font-mono); }
+
+/* skills */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 12px; background: var(--bg); font-size: 0.88rem; max-width: 100%; }
+.chip.unk { border-style: dashed; color: var(--muted); }
+.chip .nm { margin-right: 4px; overflow-wrap: anywhere; }
+.lv { display: inline-flex; border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.lv button { font: 500 0.74rem var(--font-mono); border: 0; background: transparent; color: var(--muted); padding: 5px 9px; cursor: pointer; }
+.lv button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.chip .x { font-size: 1.1rem; line-height: 1; border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 8px; border-radius: 999px; }
+.chip .x:hover { color: var(--gap); }
+.cat { display: grid; gap: 8px; }
+.cat .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.opt { font: 500 0.84rem var(--font-body); border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.opt[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+details summary { cursor: pointer; font-weight: 600; font-size: 0.93rem; }
+details[open] summary { margin-bottom: 12px; }
+details > .field + .row, details > .row { margin-top: 12px; }
+
+/* role */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 0.92rem; }
+th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+th { font: 500 0.72rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--band); }
+tr:last-child td { border-bottom: 0; }
+td.n { font-variant-numeric: tabular-nums; }
+
+/* path */
+.progress { display: grid; gap: 8px; }
+.pbar { height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--have); }
+.steps { list-style: none; padding: 0; margin: 0; }
+.step { display: grid; grid-template-columns: 7rem minmax(0, 1fr) auto; gap: 22px; padding: 20px 0; border-top: 1px solid var(--line); align-items: start; }
+.step .when { font: 400 0.8rem var(--font-mono); color: var(--muted); }
+.step .when b { display: block; font-size: 1.05rem; color: var(--ink); font-weight: 500; }
+.step h3 { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.step h3 small { font: 400 0.8rem var(--font-mono); color: var(--muted); }
+.step.done h3 .t { text-decoration: line-through; color: var(--muted); }
+.prio { font: 500 0.7rem var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; background: var(--band); border: 1px solid var(--line); }
+.prio.high { background: var(--gap); border-color: var(--gap); color: #fff; }
+.res { display: grid; gap: 8px; margin-top: 10px; font-size: 0.92rem; }
+.res div { display: grid; grid-template-columns: 6.2rem minmax(0, 1fr); gap: 12px; }
+.res .tag { font: 500 0.72rem var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+.check { display: inline-flex; gap: 8px; align-items: center; font-size: 0.86rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.check input { width: 20px; height: 20px; accent-color: var(--have); cursor: pointer; }
+.empty { padding: 26px; border: 1.5px dashed var(--line); border-radius: 10px; color: var(--muted); list-style: none; }
+footer { border-top: 1px solid var(--line); padding-block: 22px; font-size: 0.82rem; color: var(--muted); }
+
+@media (max-width: 880px) { .grid2, .grid2.even { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) {
+  .summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .score { grid-template-columns: minmax(0, 1fr); }
+  .lrow { grid-template-columns: minmax(0, 1fr) 6rem; row-gap: 6px; }
+  .lrow .track { grid-column: 1 / -1; grid-row: 2; }
+  .step { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .res div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .addrow { flex-direction: column; }
+  .controls .sync { margin-left: 0; }
+}
+</style>
+
+<header class="appbar">
+  <div class="wrap">
+    <div class="brand">Skill Gap Analysis<small>Learning path planner</small></div>
+    <nav class="tabs" aria-label="Views" id="tabs">
+      <a href="#overview" data-v="overview">Overview</a>
+      <a href="#skills" data-v="skills">My skills</a>
+      <a href="#role" data-v="role">Target role</a>
+      <a href="#path" data-v="path">Learning path</a>
+    </nav>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="wrap">
+    <div class="field"><label for="roleSel">Target role</label><select id="roleSel"></select></div>
+    <div class="field"><label for="hoursSel">Study time per week</label>
+      <select id="hoursSel"><option value="5">5 hours</option><option value="10">10 hours</option><option value="15">15 hours</option><option value="20">20 hours</option></select></div>
+    <p class="sync" id="saveNote">Saved in this browser</p>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+    <div class="banner" id="banner" hidden>
+      <span>You are looking at a sample student profile. Replace it with your own skills to get a real analysis.</span>
+      <button class="btn primary" type="button" id="clearSample">Start with my own skills</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="view" id="v-overview" aria-label="Overview">
+      <div class="grid2">
+        <div class="panel">
+          <div class="score" id="ovScore"></div>
+          <div class="summary" id="ovStats"></div>
+          <div><p class="label" style="margin-bottom:6px">Learn next</p><ul class="nextlist" id="ovNext"></ul></div>
+        </div>
+        <div class="panel">
+          <h2>Skills against the role</h2>
+          <div class="legend">
+            <span><i style="background:var(--have)"></i>Meets the role</span>
+            <span><i style="background:var(--part)"></i>Partly there</span>
+            <span><i style="background:var(--gap)"></i>Missing</span>
+            <span><i class="bar"></i>Level the role needs</span>
+          </div>
+          <div class="ladder" id="ladder"></div>
+        </div>
+      </div>
+      <div class="panel hist">
+        <h2>Career readiness over time</h2>
+        <div id="history"></div>
+      </div>
+    </section>
+
+    <!-- SKILLS -->
+    <section class="view" id="v-skills" aria-label="My skills" hidden>
+      <div class="grid2 even">
+        <div class="panel">
+          <h2>Your skills</h2>
+          <p class="muted" style="font-size:0.92rem">Set each level: B beginner, I intermediate, A advanced. Related skills count too, so PyTorch also gives credit towards Machine Learning.</p>
+          <div class="chips" id="chips"></div>
+          <div class="field">
+            <label for="skillInput">Add a skill</label>
+            <div class="addrow">
+              <input type="text" id="skillInput" list="skillList" placeholder="e.g. PyTorch, Postgres, Tableau" autocomplete="off">
+              <button class="btn primary" type="button" id="addBtn">Add</button>
+            </div>
+            <datalist id="skillList"></datalist>
+            <p class="status" id="status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Import from your resume</h2>
+          <div class="field">
+            <label for="resumeFile">Open a text file (.txt or .md)</label>
+            <input type="file" id="resumeFile" accept=".txt,.md,.text,text/plain">
+          </div>
+          <div class="field">
+            <label for="resume">Or paste resume text</label>
+            <textarea id="resume" placeholder="Paste your resume or LinkedIn About and Experience sections. Skills mentioned more often, or described as advanced, start at a higher level."></textarea>
+          </div>
+          <div class="row"><button class="btn primary" type="button" id="parseBtn">Extract skills</button></div>
+          <p class="status" id="resumeStatus" role="status" aria-live="polite">For a PDF or Word resume, copy the text and paste it above.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Browse all skills</h2>
+        <p class="muted" style="font-size:0.92rem">Select a skill to add it at intermediate level. Select it again to remove it.</p>
+        <div id="catalogue" style="display:grid;gap:18px"></div>
+      </div>
+    </section>
+
+    <!-- ROLE -->
+    <section class="view" id="v-role" aria-label="Target role" hidden>
+      <div class="grid2 even">
+        <div class="panel">
+          <h2>Analyze a job description</h2>
+          <p class="muted" style="font-size:0.92rem">Paste a real job posting. The skills it mentions become your target role, with levels set by how strongly each one is stressed.</p>
+          <div class="field"><label for="jdTitle">Job title</label><input type="text" id="jdTitle" placeholder="e.g. Junior Backend Developer" autocomplete="off"></div>
+          <div class="field"><label for="jdText">Job description</label><textarea id="jdText" placeholder="Paste the responsibilities and requirements here."></textarea></div>
+          <div class="row">
+            <button class="btn primary" type="button" id="jdBtn">Use this job description</button>
+            <button class="btn ghost" type="button" id="jdClear">Remove</button>
+          </div>
+          <p class="status" id="jdStatus" role="status" aria-live="polite"></p>
+        </div>
+        <div class="panel">
+          <h2 id="reqTitle">Role requirements</h2>
+          <div class="tablewrap"><table><thead><tr><th scope="col">Skill</th><th scope="col">Needs</th><th scope="col">Importance</th><th scope="col">You</th></tr></thead><tbody id="reqBody"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PATH -->
+    <section class="view" id="v-path" aria-label="Learning path" hidden>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;align-items:end">
+          <div><h2 id="pathTitle">Learning path</h2><p class="muted" id="pathSub" style="margin-top:4px"></p></div>
+          <button class="btn ghost" type="button" id="copyPlan">Copy plan as text</button>
+        </div>
+        <div class="progress" id="pathProgress"></div>
+        <p class="status" id="copyStatus" role="status" aria-live="polite"></p>
+        <ol class="steps" id="steps"></ol>
+        <div id="doneWrap" hidden><p class="label" style="margin-top:8px">Completed</p><ol class="steps" id="doneSteps"></ol></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">Skills are matched with synonyms, spelling similarity and a skill-relationship table. Courses and practice tasks come from a built-in catalogue. Your profile is stored only in this browser.</div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- catalogue ---------- */
+  var SK = [
+    { id:"python", n:"Python", t:1, h:90, al:["python3","py"], rel:{}, c:["Python for Everybody","Coursera, University of Michigan","Course"], p:"Write a command-line tool that reads a CSV and reports summary statistics." },
+    { id:"sql", n:"SQL", t:1, h:50, al:["mysql","postgresql","postgres","sqlite","t-sql","database queries"], rel:{dbdesign:0.4}, c:["Intro to SQL","Kaggle Learn","Course"], p:"Answer 15 business questions on a public sales database using joins and window functions." },
+    { id:"stats", n:"Statistics", t:1, h:70, al:["probability","hypothesis testing","statistical analysis","regression analysis"], rel:{}, c:["Statistics and Probability","Khan Academy","Course"], p:"Run a hypothesis test on a real dataset and write up the result in plain language." },
+    { id:"excel", n:"Excel", t:1, h:30, al:["microsoft excel","spreadsheets","google sheets","vlookup","pivot tables"], rel:{}, c:["Excel Skills for Business","Coursera, Macquarie University","Certification"], p:"Build a monthly budget model with lookups and a pivot table." },
+    { id:"git", n:"Git and GitHub", t:1, h:15, al:["git","github","version control","gitlab"], rel:{}, c:["Pro Git","git-scm.com","Reading"], p:"Contribute a small pull request to an open-source repository." },
+    { id:"linux", n:"Linux and Shell", t:1, h:35, al:["linux","bash","shell","unix","shell scripting","ubuntu"], rel:{}, c:["Linux Journey","linuxjourney.com","Course"], p:"Write a bash script that backs up a folder and removes old copies." },
+    { id:"htmlcss", n:"HTML and CSS", t:1, h:45, al:["html","css","html5","css3","tailwind","bootstrap","web design"], rel:{}, c:["Responsive Web Design","freeCodeCamp","Certification"], p:"Rebuild a landing page of your choice so it works at phone width." },
+    { id:"comm", n:"Communication", t:1, h:30, al:["presentation","teamwork","public speaking","technical writing","collaboration"], rel:{}, c:["Improving Communication Skills","Coursera, University of Pennsylvania","Course"], p:"Present a project to peers in five minutes and collect written feedback." },
+    { id:"agile", n:"Agile and Scrum", t:1, h:15, al:["agile","scrum","kanban","sprint planning","jira"], rel:{}, c:["Agile Development Specialization","Coursera, University of Virginia","Course"], p:"Run a two-week sprint on a team project with a board, daily check-ins and a retrospective." },
+    { id:"networking", n:"Computer Networking", t:1, h:45, al:["networking","networks","tcp/ip","dns","http","ccna","firewalls"], rel:{}, c:["The Bits and Bytes of Computer Networking","Coursera, Google","Course"], p:"Capture traffic with Wireshark and explain one full HTTP request from DNS lookup to response." },
+    { id:"figma", n:"Figma", t:1, h:30, al:["wireframing","prototyping","sketch","adobe xd"], rel:{}, c:["Figma Learn: Get started","help.figma.com","Course"], p:"Design a three-screen mobile app prototype with a clickable flow." },
+    { id:"java", n:"Java", t:2, h:100, al:["spring","spring boot","oop","object oriented programming","jvm"], rel:{}, c:["Java Programming and Software Engineering Fundamentals","Coursera, Duke University","Course"], p:"Build a small inventory system using classes, interfaces and collections." },
+    { id:"js", n:"JavaScript", t:2, h:90, al:["typescript","es6","ecmascript","js"], rel:{htmlcss:0.3}, c:["JavaScript Algorithms and Data Structures","freeCodeCamp","Certification"], p:"Build a to-do app without a framework that saves to local storage." },
+    { id:"dsa", n:"Data Structures and Algorithms", t:2, h:120, al:["algorithms","data structures","dsa","leetcode","competitive programming","problem solving"], rel:{}, c:["CS50x: Introduction to Computer Science","Harvard, edX","Course"], p:"Solve 50 practice problems on arrays, hash maps, trees and graphs." },
+    { id:"pandas", n:"Data Cleaning (Pandas)", t:2, h:40, al:["pandas","numpy","data cleaning","data wrangling","data preprocessing","data preparation"], rel:{python:0.5}, c:["Pandas","Kaggle Learn","Course"], p:"Clean a messy public dataset: fix types, fill missing values and remove duplicates." },
+    { id:"dataviz", n:"Data Visualization", t:2, h:30, al:["matplotlib","seaborn","plotly","data visualisation","charts"], rel:{}, c:["Data Visualization","Kaggle Learn","Course"], p:"Recreate a chart from a published news article with matplotlib or seaborn." },
+    { id:"security", n:"Security Fundamentals", t:2, h:60, al:["cybersecurity","cyber security","information security","owasp","encryption","penetration testing","siem","incident response"], rel:{networking:0.3}, c:["Google Cybersecurity Certificate","Coursera, Google","Certification"], p:"Work through the OWASP Top 10 on a deliberately vulnerable practice app and write up each fix." },
+    { id:"uxdesign", n:"UX Design", t:2, h:70, al:["ux","ui design","ui/ux","user research","usability testing","user experience","interaction design"], rel:{figma:0.5}, c:["Google UX Design Certificate","Coursera, Google","Certification"], p:"Interview five users about an everyday problem, then test a prototype with them." },
+    { id:"bi", n:"Power BI / Tableau", t:3, h:50, al:["power bi","powerbi","tableau","looker","dashboards","business intelligence"], rel:{dataviz:0.7, excel:0.4}, c:["Microsoft Power BI Data Analyst (PL-300)","Microsoft Learn","Certification"], p:"Publish a three-page sales dashboard with filters." },
+    { id:"ml", n:"Machine Learning", t:3, h:100, al:["machine learning","scikit-learn","sklearn","random forest","xgboost","decision tree","regression","classification","supervised learning"], rel:{fe:0.5, stats:0.4, python:0.5}, c:["Machine Learning Specialization","Coursera, DeepLearning.AI","Course"], p:"Train and compare three classifiers on a Kaggle tabular dataset." },
+    { id:"fe", n:"Feature Engineering", t:3, h:30, al:["feature selection","feature extraction"], rel:{pandas:0.5, ml:0.4}, c:["Feature Engineering","Kaggle Learn","Course"], p:"Improve a baseline model score using only new features." },
+    { id:"react", n:"React", t:3, h:70, al:["reactjs","react.js","redux","next.js","nextjs"], rel:{js:0.8, htmlcss:0.6}, c:["Learn React","react.dev","Course"], p:"Build a searchable, filterable list app from reusable components." },
+    { id:"node", n:"Node.js", t:3, h:60, al:["nodejs","node js","express","expressjs"], rel:{js:0.8, api:0.5}, c:["Learn Node.js","nodejs.org","Reading"], p:"Build a REST service with sign-in and a database." },
+    { id:"api", n:"REST APIs", t:3, h:40, al:["rest","restful","rest api","fastapi","flask","graphql","api development"], rel:{}, c:["FastAPI Tutorial","fastapi.tiangolo.com","Reading"], p:"Design and document a small API with versioned routes and clear error responses." },
+    { id:"dbdesign", n:"Database Design", t:3, h:45, al:["database design","normalization","er diagram","mongodb","nosql","dbms","schema design"], rel:{sql:0.7}, c:["Relational Database","freeCodeCamp","Certification"], p:"Model a library system with an ER diagram, then normalise it to third normal form." },
+    { id:"docker", n:"Docker", t:3, h:30, al:["containers","containerization","docker compose"], rel:{linux:0.4}, c:["Get Started with Docker","docs.docker.com","Course"], p:"Containerise a two-service app with Docker Compose." },
+    { id:"cloud", n:"Cloud (AWS)", t:3, h:70, al:["aws","azure","gcp","amazon web services","google cloud","ec2","s3"], rel:{linux:0.3}, c:["AWS Certified Cloud Practitioner","Amazon Web Services","Certification"], p:"Host a static site and a small API on a free-tier account." },
+    { id:"testing", n:"Testing", t:3, h:30, al:["unit testing","pytest","jest","tdd","test automation","selenium"], rel:{}, c:["pytest documentation","docs.pytest.org","Reading"], p:"Raise a project to 80% test coverage with unit and integration tests." },
+    { id:"dl", n:"Deep Learning", t:4, h:100, al:["deep learning","tensorflow","pytorch","keras","neural networks","cnn","rnn"], rel:{ml:0.7, python:0.6}, c:["Practical Deep Learning for Coders","fast.ai","Course"], p:"Fine-tune an image classifier on your own labelled photos." },
+    { id:"nlp", n:"Natural Language Processing", t:4, h:70, al:["nlp","nltk","spacy","transformers","hugging face","bert","text mining","sentence embeddings"], rel:{ml:0.5, python:0.5}, c:["Natural Language Processing","Kaggle Learn","Course"], p:"Build a skill extractor that tags skills in job descriptions using sentence embeddings." },
+    { id:"cicd", n:"CI/CD", t:4, h:30, al:["ci/cd","github actions","jenkins","continuous integration","pipelines"], rel:{git:0.5}, c:["GitHub Actions documentation","docs.github.com","Reading"], p:"Add a pipeline that tests, builds and deploys on every push to main." },
+    { id:"k8s", n:"Kubernetes", t:4, h:60, al:["k8s","helm"], rel:{docker:0.7, linux:0.4}, c:["Kubernetes Basics tutorial","kubernetes.io","Course"], p:"Deploy a containerised app to a local cluster with a rolling update." },
+    { id:"sysdesign", n:"System Design", t:4, h:80, al:["scalability","distributed systems","architecture","microservices"], rel:{api:0.5, dbdesign:0.5}, c:["System Design Primer","GitHub, donnemartin","Reading"], p:"Write a design document for a URL shortener covering scale and failure cases." },
+    { id:"mlops", n:"MLOps", t:4, h:70, al:["mlflow","model deployment","model serving","kubeflow","ml pipelines"], rel:{docker:0.4, ml:0.4}, c:["Made With ML","madewithml.com","Course"], p:"Track experiments with MLflow and serve a model behind an API." }
+  ];
+  var BY = {}; SK.forEach(function (s) { BY[s.id] = s; });
+  var CATS = [
+    ["Programming", ["python","java","js","dsa","git","testing"]],
+    ["Data and analytics", ["sql","stats","excel","pandas","dataviz","bi","dbdesign"]],
+    ["AI and machine learning", ["ml","fe","dl","nlp","mlops"]],
+    ["Web and backend", ["htmlcss","react","node","api","sysdesign"]],
+    ["Cloud, DevOps and security", ["linux","docker","cloud","cicd","k8s","networking","security"]],
+    ["Design and professional", ["figma","uxdesign","comm","agile"]]
+  ];
+  /* roles: [skill, required level 1-3, importance 1-3] */
+  var ROLES = {
+    ds: { n:"Data Scientist", r:[["python",3,3],["stats",3,3],["ml",3,3],["sql",2,2],["pandas",3,2],["fe",2,2],["dataviz",2,1],["dl",2,1],["nlp",1,1],["git",2,1],["comm",2,1]] },
+    mle: { n:"Machine Learning Engineer", r:[["python",3,3],["ml",3,3],["mlops",2,3],["dl",3,2],["docker",2,2],["cloud",2,2],["dsa",2,2],["git",2,1],["sql",2,1],["api",2,1],["testing",2,1],["linux",2,1]] },
+    da: { n:"Data Analyst", r:[["sql",3,3],["bi",3,3],["excel",3,2],["stats",2,2],["dataviz",3,2],["pandas",2,2],["comm",3,2],["python",2,1]] },
+    fs: { n:"Full-Stack Developer", r:[["js",3,3],["react",3,3],["htmlcss",3,2],["node",2,2],["api",3,2],["sql",2,2],["git",3,2],["dbdesign",2,1],["testing",2,1],["docker",1,1],["cloud",1,1]] },
+    fe: { n:"Frontend Developer", r:[["htmlcss",3,3],["js",3,3],["react",3,3],["git",2,2],["testing",2,2],["api",2,1],["figma",1,1],["comm",2,1],["agile",2,1]] },
+    be: { n:"Backend Developer", r:[["api",3,3],["sql",3,3],["python",3,2],["git",3,2],["dbdesign",2,2],["dsa",2,2],["sysdesign",2,2],["testing",2,1],["docker",2,1],["node",2,1]] },
+    java: { n:"Java Developer", r:[["java",3,3],["sql",3,2],["api",3,2],["dsa",3,2],["git",2,2],["testing",2,2],["dbdesign",2,1],["docker",2,1],["agile",2,1]] },
+    devops: { n:"DevOps Engineer", r:[["linux",3,3],["docker",3,3],["cicd",3,3],["cloud",3,3],["git",3,2],["k8s",2,2],["networking",2,1],["python",2,1],["testing",1,1]] },
+    sec: { n:"Cybersecurity Analyst", r:[["security",3,3],["networking",3,3],["linux",3,2],["python",2,2],["cloud",2,1],["comm",2,1],["agile",1,1]] },
+    ux: { n:"UX Designer", r:[["uxdesign",3,3],["figma",3,3],["htmlcss",1,1],["comm",3,2],["agile",2,1],["dataviz",1,1]] }
+  };
+  var LEVELS = { 1:"Beginner", 2:"Intermediate", 3:"Advanced" }, LETTER = { 1:"B", 2:"I", 3:"A" };
+
+  /* ---------- state ---------- */
+  var KEY = "skillgap-app-v1";
+  function sampleState() {
+    return { role:"ds", hours:10, sample:true, unknown:[], done:{}, history:{}, jd:null,
+      skills:{ python:2, sql:2, stats:1, git:2, excel:2, pandas:1, comm:2, dataviz:1, htmlcss:1 } };
+  }
+  var state = sampleState();
+  try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); if (o && o.skills) state = o; } } catch (e) {}
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); $("saveNote").textContent = "Saved in this browser"; }
+    catch (e) { $("saveNote").textContent = "Not saved: this browser blocks storage"; }
+  }
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]; }); }
+
+  /* ---------- matching and text scanning ---------- */
+  function norm(s) { return String(s).toLowerCase().replace(/[^a-z0-9+#./ ]+/g, " ").replace(/\s+/g, " ").trim(); }
+  function bigrams(s) { var g = {}, n = 0; s = " " + s + " "; for (var i = 0; i < s.length - 1; i++) { var b = s.substr(i, 2); g[b] = (g[b] || 0) + 1; n++; } return { g:g, n:n }; }
+  function dice(a, b) { var A = bigrams(a), B = bigrams(b), hit = 0; for (var k in A.g) if (B.g[k]) hit += Math.min(A.g[k], B.g[k]); return (2 * hit) / (A.n + B.n); }
+  function terms(s) { return [norm(s.n)].concat(s.al.map(norm)); }
+  var TERMS = SK.map(function (s) { return { s:s, t:terms(s) }; });
+
+  function match(q) {
+    q = norm(q); if (!q) return null;
+    var best = null, score;
+    TERMS.forEach(function (e) { e.t.forEach(function (t) {
+      if (t === q) score = 1;
+      else if (q.length >= 4 && t.length >= 4 && (t.indexOf(q) === 0 || q.indexOf(t) === 0)) score = 0.9;
+      else score = dice(q, t);
+      if (!best || score > best.score) best = { s:e.s, score:score };
+    }); });
+    return best && best.score >= 0.74 ? best : null;
+  }
+
+  /* find every known skill in free text: returns { id: {count, hi, lo} } */
+  var HI = /(expert|advanced|proficient|extensive|strong|deep|senior|lead)/, LO = /(basic|familiar|beginner|exposure|awareness|nice to have|preferred)/;
+  function scan(text) {
+    var T = " " + norm(text) + " ", out = {};
+    SK.forEach(function (s) {
+      terms(s).forEach(function (t) {
+        if (t.length < 3) return;
+        var re = new RegExp("(^|[^a-z0-9])" + t.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&") + "(?![a-z0-9])", "g"), m;
+        while ((m = re.exec(T))) {
+          var r = out[s.id] || (out[s.id] = { count:0, hi:false, lo:false });
+          r.count++;
+          var ctx = T.slice(Math.max(0, m.index - 40), m.index + t.length + 40);
+          if (HI.test(ctx)) r.hi = true;
+          if (LO.test(ctx)) r.lo = true;
+        }
+      });
+    });
+    return out;
+  }
+
+  /* ---------- analysis ---------- */
+  function currentRole() {
+    if (state.role === "jd" && state.jd) return state.jd;
+    return ROLES[state.role] || ROLES.ds;
+  }
+  function effective() {
+    var eff = {}, from = {};
+    for (var id in state.skills) eff[id] = state.skills[id];
+    for (var src in state.skills) { var rel = BY[src].rel; for (var t in rel) { var v = state.skills[src] * rel[t]; if (v > (eff[t] || 0) + 0.01) { eff[t] = v; from[t] = src; } } }
+    return { eff:eff, from:from };
+  }
+  function lvlName(v) { return v <= 0.01 ? "none" : (v >= 2.95 ? "Advanced" : v >= 1.95 ? "Intermediate" : v >= 0.95 ? "Beginner" : "Basic"); }
+
+  function analyse() {
+    var role = currentRole(), e = effective(), rows = [], num = 0, den = 0, hpw = state.hours;
+    role.r.forEach(function (r) {
+      var s = BY[r[0]], req = r[1], w = r[2], user = e.eff[s.id] || 0;
+      var status = user >= req - 0.001 ? "met" : (user >= 0.4 ? "partial" : "missing");
+      num += w * Math.min(user / req, 1); den += w;
+      rows.push({ s:s, req:req, w:w, user:user, status:status, done:!!state.done[s.id],
+        inferred: !state.skills[s.id] && e.from[s.id] ? BY[e.from[s.id]].n : null, hours: s.h * (req - Math.min(user, req)) / 3 });
+    });
+    var gaps = rows.filter(function (r) { return r.status !== "met"; });
+    gaps.sort(function (a, b) { return a.s.t - b.s.t || (b.w * (b.req - b.user)) - (a.w * (a.req - a.user)); });
+    var cum = 0;
+    gaps.forEach(function (g) { g.start = cum; cum += g.hours; g.w0 = Math.floor(g.start / hpw) + 1; g.w1 = Math.max(g.w0, Math.ceil(cum / hpw)); });
+    var shown = rows.slice().sort(function (a, b) { return ord(a) - ord(b) || b.w - a.w; });
+    function ord(r) { return r.status === "missing" ? 0 : r.status === "partial" ? 1 : 2; }
+    var completed = rows.filter(function (r) { return r.status === "met" && state.done[r.s.id]; });
+    return { role:role, rows:shown, gaps:gaps, completed:completed, score:Math.round(num / den * 100), hours:cum, weeks:Math.ceil(cum / hpw),
+      c:{ met:rows.filter(function (r) { return r.status === "met"; }).length, partial:rows.filter(function (r) { return r.status === "partial"; }).length, missing:rows.filter(function (r) { return r.status === "missing"; }).length } };
+  }
+
+  /* ---------- rendering ---------- */
+  function prio(w) { return w >= 3 ? ["High", "high"] : w === 2 ? ["Medium", ""] : ["Low", ""]; }
+  function colFor(score) { return score >= 75 ? "var(--have)" : score >= 45 ? "var(--part)" : "var(--gap)"; }
+  function weeks(g) { return "Week " + g.w0 + (g.w1 > g.w0 ? "–" + g.w1 : ""); }
+
+  function ring(score) {
+    var c = 2 * Math.PI * 50, off = c * (1 - score / 100);
+    return '<div class="ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--track)" stroke-width="11"/>' +
+      '<circle cx="60" cy="60" r="50" fill="none" stroke="' + colFor(score) + '" stroke-width="11" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg>' +
+      '<div class="num"><span>' + score + '<small>%</small></span></div></div>';
+  }
+
+  function recordHistory(a) {
+    var key = state.role, h = state.history[key] || (state.history[key] = []), last = h[h.length - 1];
+    if (!last || last.s !== a.score) { h.push({ t:Date.now(), s:a.score }); if (h.length > 40) h.shift(); }
+  }
+  function historySVG(h) {
+    if (!h.length) return "";
+    var W = 640, H = 180, L = 34, R = 16, T = 14, B = 26, iw = W - L - R, ih = H - T - B;
+    function x(i) { return L + (h.length === 1 ? iw / 2 : iw * i / (h.length - 1)); }
+    function y(v) { return T + ih * (1 - v / 100); }
+    var g = [0, 50, 100].map(function (v) { return '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)"/><text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + v + '</text>'; }).join("");
+    var pts = h.map(function (p, i) { return x(i).toFixed(1) + "," + y(p.s).toFixed(1); });
+    var line = h.length > 1 ? '<polyline points="' + pts.join(" ") + '" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>' : "";
+    var dots = h.map(function (p, i) { return '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(p.s).toFixed(1) + '" r="' + (i === h.length - 1 ? 5.5 : 3.5) + '" fill="' + (i === h.length - 1 ? "var(--accent)" : "var(--surface)") + '" stroke="var(--accent)" stroke-width="2"/>'; }).join("");
+    var f = function (t) { return new Date(t).toLocaleDateString(undefined, { day:"numeric", month:"short" }); };
+    var last = h[h.length - 1];
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Readiness history, latest ' + last.s + ' percent">' + g + line + dots +
+      '<text x="' + L + '" y="' + (H - 6) + '">' + f(h[0].t) + '</text><text x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">' + f(last.t) + '</text>' +
+      '<text x="' + Math.min(x(h.length - 1), W - R - 24).toFixed(1) + '" y="' + (y(last.s) - 11).toFixed(1) + '" text-anchor="middle" style="fill:var(--ink);font-weight:500">' + last.s + '%</text></svg>';
+  }
+
+  function stepHTML(g, isDone, withCheck) {
+    var p = prio(g.w), s = g.s, from = g.user > 0.01 && !isDone ? lvlName(g.user) : "Start";
+    return '<li class="step' + (isDone ? " done" : "") + '"><div class="when">' + (isDone ? '<b>Done</b>' : '<b>' + weeks(g) + '</b>' + Math.round(g.hours) + ' hours') + '</div><div>' +
+      '<h3><span class="t">' + esc(s.n) + '</span>' + (isDone ? '' : ' <span class="prio ' + p[1] + '">' + p[0] + ' priority</span><small>' + from + ' → ' + LEVELS[g.req] + '</small>') + '</h3>' +
+      '<div class="res"><div><span class="tag">' + esc(s.c[2]) + '</span><span><strong>' + esc(s.c[0]) + '</strong> <span class="muted">· ' + esc(s.c[1]) + '</span></span></div>' +
+      '<div><span class="tag">Practice</span><span>' + esc(s.p) + '</span></div></div></div>' +
+      '<label class="check"><input type="checkbox" data-done="' + s.id + '" data-req="' + g.req + '"' + (isDone ? " checked" : "") + '> ' + (isDone ? "Completed" : "Mark complete") + '</label></li>';
+  }
+
+  function render() {
+    var a = analyse(); recordHistory(a); save();
+    $("banner").hidden = !state.sample;
+
+    // selects
+    var opts = Object.keys(ROLES).map(function (k) { return '<option value="' + k + '">' + ROLES[k].n + '</option>'; });
+    if (state.jd) opts.push('<option value="jd">From job description: ' + esc(state.jd.n) + '</option>');
+    var rs = $("roleSel"); rs.innerHTML = opts.join(""); rs.value = state.role; $("hoursSel").value = String(state.hours);
+
+    // overview
+    $("ovScore").innerHTML = ring(a.score) + '<div><p class="eyebrow">Career readiness</p><h2 style="margin-top:4px">' + esc(a.role.n) + '</h2><p class="muted" style="margin-top:4px;font-size:0.92rem">' +
+      (a.gaps.length ? 'About ' + Math.round(a.hours) + ' hours to go, roughly ' + a.weeks + ' week' + (a.weeks === 1 ? '' : 's') + ' at ' + state.hours + ' hours a week.' : 'You meet every requirement for this role.') + '</p></div>';
+    $("ovStats").innerHTML = '<div class="stat have"><b>' + a.c.met + '</b><span>Skills met</span></div><div class="stat part"><b>' + a.c.partial + '</b><span>Partly there</span></div><div class="stat gap"><b>' + a.c.missing + '</b><span>Missing</span></div>';
+    $("ovNext").innerHTML = a.gaps.length ? a.gaps.slice(0, 4).map(function (g) { return '<li><span>' + esc(g.s.n) + '</span><span>' + weeks(g) + '</span></li>'; }).join("") : '<li><span>Nothing left to learn</span><span></span></li>';
+    $("ladder").innerHTML = a.rows.map(function (r) {
+      var sub = r.inferred ? 'inferred from ' + esc(r.inferred) : 'you: ' + lvlName(r.user) + ' · needs ' + LEVELS[r.req];
+      var label = r.status === "met" ? "Met" : r.status === "partial" ? "Partial" : "Missing";
+      return '<div class="lrow"><div class="nm">' + esc(r.s.n) + '<small>' + sub + '</small></div><div class="track" role="img" aria-label="' + esc(r.s.n) + ': ' + lvlName(r.user) + ' of ' + LEVELS[r.req] + ' needed"><div class="fill ' + r.status + '" style="width:' + (Math.min(r.user, 3) / 3 * 100).toFixed(1) + '%"></div><div class="req" style="left:' + (r.req / 3 * 100).toFixed(1) + '%"></div></div><span class="pill ' + r.status + '">' + label + '</span></div>';
+    }).join("");
+    var h = state.history[state.role] || [];
+    $("history").innerHTML = historySVG(h) + '<p class="status" style="margin-top:8px">' + (h.length < 2 ? 'Each time your score changes, a point is added here. Complete steps in your learning path to see it climb.' : h.length + ' checkpoints for this role.') + '</p>';
+
+    // skills
+    var chips = Object.keys(state.skills).map(function (id) {
+      var v = state.skills[id], s = BY[id];
+      var b = [1, 2, 3].map(function (n) { return '<button type="button" data-act="lv" data-id="' + id + '" data-lv="' + n + '" aria-pressed="' + (v === n) + '" title="' + LEVELS[n] + '" aria-label="' + esc(s.n) + ' ' + LEVELS[n] + '">' + LETTER[n] + '</button>'; }).join("");
+      return '<div class="chip"><span class="nm">' + esc(s.n) + '</span><span class="lv" role="group" aria-label="Level of ' + esc(s.n) + '">' + b + '</span><button type="button" class="x" data-act="rm" data-id="' + id + '" aria-label="Remove ' + esc(s.n) + '">×</button></div>';
+    });
+    state.unknown.forEach(function (u, i) { chips.push('<div class="chip unk" title="Not in the catalogue, so it does not affect the score"><span class="nm">' + esc(u) + ' · not recognised</span><button type="button" class="x" data-act="rmu" data-i="' + i + '" aria-label="Remove ' + esc(u) + '">×</button></div>'); });
+    $("chips").innerHTML = chips.length ? chips.join("") : '<p class="status">No skills yet. Add one below, import a resume, or browse the list.</p>';
+    $("catalogue").innerHTML = CATS.map(function (c) {
+      return '<div class="cat"><p class="label">' + c[0] + '</p><div class="opts">' + c[1].map(function (id) { return '<button type="button" class="opt" data-act="tog" data-id="' + id + '" aria-pressed="' + !!state.skills[id] + '">' + esc(BY[id].n) + '</button>'; }).join("") + '</div></div>';
+    }).join("");
+
+    // role
+    $("reqTitle").textContent = a.role.n + ": requirements";
+    $("reqBody").innerHTML = a.rows.slice().sort(function (x, y) { return y.w - x.w || x.s.t - y.s.t; }).map(function (r) {
+      return '<tr><td>' + esc(r.s.n) + '</td><td>' + LEVELS[r.req] + '</td><td>' + ["", "Low", "Medium", "High"][r.w] + '</td><td class="n"><span class="pill ' + r.status + '" style="display:inline-block">' + lvlName(r.user) + '</span></td></tr>';
+    }).join("");
+    if (state.jd) { $("jdTitle").value = $("jdTitle").value || state.jd.n; }
+
+    // path
+    var total = a.gaps.length + a.completed.length, pct = total ? Math.round(a.completed.length / total * 100) : 100;
+    $("pathTitle").textContent = "Learning path for " + a.role.n;
+    $("pathSub").textContent = a.gaps.length ? 'About ' + Math.round(a.hours) + ' hours remaining, roughly ' + a.weeks + ' week' + (a.weeks === 1 ? '' : 's') + ' at ' + state.hours + ' hours a week. Foundations come first.' : 'Every requirement for this role is met.';
+    $("pathProgress").innerHTML = '<div class="row" style="justify-content:space-between"><span class="label">Steps completed</span><span class="label">' + a.completed.length + ' of ' + total + '</span></div><div class="pbar" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + pct + '%"></i></div>';
+    $("steps").innerHTML = a.gaps.length ? a.gaps.map(function (g) { return stepHTML(g, false); }).join("") : '<li class="empty">Nothing left to learn for this role. Pick a more demanding role to see a longer path.</li>';
+    $("doneWrap").hidden = !a.completed.length;
+    $("doneSteps").innerHTML = a.completed.map(function (g) { return stepHTML(g, true); }).join("");
+    window.__plan = a;
+  }
+
+  /* ---------- actions ---------- */
+  function setStatus(id, msg) { $(id).textContent = msg; }
+  function touch() { state.sample = false; }
+
+  function addSkill(rawText, level) {
+    var m = match(rawText);
+    if (m) {
+      state.skills[m.s.id] = Math.max(state.skills[m.s.id] || 0, level || 2);
+      return (norm(rawText) === norm(m.s.n) ? "" : "“" + rawText.trim() + "” matched to " + m.s.n + " (" + Math.round(m.score * 100) + "% similar). ") + m.s.n + " added at " + LEVELS[state.skills[m.s.id]] + " level.";
+    }
+    if (state.unknown.indexOf(rawText.trim()) < 0) state.unknown.push(rawText.trim());
+    return "“" + rawText.trim() + "” is not in the catalogue. It is listed but does not change the score.";
+  }
+  function addFromInput() {
+    var el = $("skillInput"), parts = el.value.split(/[,;\n]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+    if (!parts.length) { setStatus("status", "Type a skill name first."); return; }
+    var msgs = parts.map(function (p) { return addSkill(p, 2); });
+    touch(); el.value = ""; render(); setStatus("status", parts.length > 1 ? parts.length + " entries processed." : msgs[0]); el.focus();
+  }
+  function parseResume() {
+    var text = $("resume").value;
+    if (norm(text).length < 3) { setStatus("resumeStatus", "Paste some resume text or open a text file first."); return; }
+    var found = scan(text), n = 0;
+    Object.keys(found).forEach(function (id) {
+      var f = found[id], lv = Math.min(3, f.count);
+      if (f.hi) lv = Math.min(3, lv + 1);
+      if (f.lo) lv = Math.min(lv, 1);
+      state.skills[id] = Math.max(state.skills[id] || 0, lv); n++;
+    });
+    touch(); render();
+    setStatus("resumeStatus", n ? n + " skill" + (n === 1 ? "" : "s") + " found and added to your profile. Check the levels on this page and adjust any that look off." : "No known skills found in that text.");
+  }
+  function useJD() {
+    var text = $("jdText").value, title = $("jdTitle").value.trim() || "Custom role", found = scan(text), r = [];
+    Object.keys(found).forEach(function (id) {
+      var f = found[id], req = f.lo ? 1 : (f.count >= 2 || f.hi ? 3 : 2), w = f.count >= 3 ? 3 : f.count === 2 ? 2 : 1;
+      r.push([id, req, w]);
+    });
+    if (r.length < 2) { setStatus("jdStatus", "Fewer than two known skills were found. Paste the full requirements section."); return; }
+    state.jd = { n:title, r:r }; state.role = "jd"; delete state.history.jd;
+    render(); setStatus("jdStatus", r.length + " skills found in the description. Your target role is now " + title + ".");
+  }
+  function clearJD() {
+    state.jd = null; if (state.role === "jd") state.role = "ds"; delete state.history.jd;
+    $("jdText").value = ""; $("jdTitle").value = ""; render(); setStatus("jdStatus", "Job description removed.");
+  }
+  function toggleDone(id, req, on) {
+    if (on) { state.done[id] = { prev: state.skills[id] || 0 }; state.skills[id] = Math.max(state.skills[id] || 0, req); }
+    else { var d = state.done[id]; if (d && d.prev > 0) state.skills[id] = d.prev; else delete state.skills[id]; delete state.done[id]; }
+    touch(); render();
+  }
+  function planText() {
+    var a = window.__plan, L = ["Learning path for " + a.role.n + " (readiness " + a.score + "%)", "About " + Math.round(a.hours) + " hours at " + state.hours + " hours a week.", ""];
+    a.gaps.forEach(function (g, i) { L.push((i + 1) + ". " + weeks(g) + ": " + g.s.n + " (" + (g.user > 0.01 ? lvlName(g.user) : "Start") + " to " + LEVELS[g.req] + ", " + Math.round(g.hours) + " hours)", "   " + g.s.c[2] + ": " + g.s.c[0] + " (" + g.s.c[1] + ")", "   Practice: " + g.s.p); });
+    return L.join("\n");
+  }
+  function copyPlan() {
+    var txt = planText();
+    function fallback() {
+      var ta = document.createElement("textarea"); ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e) {} document.body.removeChild(ta);
+      setStatus("copyStatus", ok ? "Plan copied." : "Copying is blocked here. Select the steps below and copy them manually.");
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { setStatus("copyStatus", "Plan copied."); }, fallback); else fallback();
+  }
+
+  /* ---------- routing and wiring ---------- */
+  var VIEWS = ["overview", "skills", "role", "path"];
+  function route() {
+    var v = (location.hash || "").slice(1); if (VIEWS.indexOf(v) < 0) v = "overview";
+    VIEWS.forEach(function (n) { $("v-" + n).hidden = n !== v; });
+    Array.prototype.forEach.call($("tabs").children, function (a) { if (a.getAttribute("data-v") === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", route);
+
+  $("skillList").innerHTML = SK.map(function (s) { return '<option value="' + esc(s.n) + '"></option>'; }).join("");
+  $("roleSel").addEventListener("change", function (e) { state.role = e.target.value; render(); });
+  $("hoursSel").addEventListener("change", function (e) { state.hours = +e.target.value; render(); });
+  $("addBtn").addEventListener("click", addFromInput);
+  $("skillInput").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addFromInput(); } });
+  $("parseBtn").addEventListener("click", parseResume);
+  $("jdBtn").addEventListener("click", useJD);
+  $("jdClear").addEventListener("click", clearJD);
+  $("copyPlan").addEventListener("click", copyPlan);
+  $("clearSample").addEventListener("click", function () { state.skills = {}; state.unknown = []; state.done = {}; state.history = {}; state.sample = false; render(); location.hash = "#skills"; });
+  $("resumeFile").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { $("resume").value = String(r.result).slice(0, 60000); setStatus("resumeStatus", "Loaded " + f.name + ". Select Extract skills to read it."); };
+    r.onerror = function () { setStatus("resumeStatus", "That file could not be read. Paste the text instead."); };
+    r.readAsText(f);
+  });
+  function onClick(e) {
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var act = b.getAttribute("data-act"), id = b.getAttribute("data-id");
+    if (act === "lv") state.skills[id] = +b.getAttribute("data-lv");
+    else if (act === "rm") delete state.skills[id];
+    else if (act === "rmu") state.unknown.splice(+b.getAttribute("data-i"), 1);
+    else if (act === "tog") { if (state.skills[id]) delete state.skills[id]; else state.skills[id] = 2; }
+    touch(); render();
+  }
+  $("chips").addEventListener("click", onClick);
+  $("catalogue").addEventListener("click", onClick);
+  function onCheck(e) { var c = e.target.closest("input[data-done]"); if (c) toggleDone(c.getAttribute("data-done"), +c.getAttribute("data-req"), c.checked); }
+  $("steps").addEventListener("change", onCheck);
+  $("doneSteps").addEventListener("change", onCheck);
+
+  if (state.role === "jd" && !state.jd) state.role = "ds";
+  render(); route();
+})();
+</script>
+
+</body></html>
